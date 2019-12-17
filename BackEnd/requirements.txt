@@ -1,0 +1,6 @@
+Django==2.2.8
+django-cors-headers
+djangorestframework
+Pillow
+gunicorn
+psycopg2-binary

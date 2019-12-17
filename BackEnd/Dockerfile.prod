@@ -1,0 +1,89 @@
+###########
+# BUILDER #
+###########
+
+#pull official base image
+FROM python:3-alpine as builder
+
+#set work directory
+WORKDIR /usr/src/BackEnd
+
+#set enviroment variables
+ENV PYTHONUNBUFFERED 1
+ENV PYTHONBUFFERED 1
+
+#Pillow dependencies
+RUN apk update \
+                && apk add postgresql-dev\
+                gcc \
+                python3-dev \
+                musl-dev \
+                zlib-dev \
+                freetype-dev \
+                lcms2-dev \
+                openjpeg-dev \
+                tiff-dev \
+                tk-dev \
+                tcl-dev \
+                harfbuzz-dev \
+                fribidi-dev
+
+# lint
+RUN pip install --upgrade pip
+COPY . /usr/src/BackEnd/
+
+#install dependencies
+COPY ./requirements.txt .
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/BackEnd/wheels -r requirements.txt
+
+#########
+# FINAL #
+#########
+
+#pull official base image
+FROM python:3-alpine
+
+#create directory for the BackEnd user as kore
+RUN mkdir -p /home/BackEnd
+
+#create the kore user
+RUN addgroup -S kore && adduser -S kore -G kore
+
+#create the appropiate directories
+ENV HOME=/home/BackEnd
+ENV APP_HOME=/home/BackEnd/web
+RUN mkdir $APP_HOME
+RUN mkdir $APP_HOME/static
+RUN mkdir $APP_HOME/mediafiles
+WORKDIR $APP_HOME
+
+# install dependencies
+RUN apk update && apk --no-cache add libpq \
+                zlib-dev \
+                freetype-dev \
+                lcms2-dev \
+                openjpeg-dev \
+                tiff-dev \
+                tk-dev \
+                tcl-dev \
+                harfbuzz-dev \
+                fribidi-dev
+COPY --from=builder /usr/src/BackEnd/wheels /wheels
+COPY --from=builder /usr/src/BackEnd/requirements.txt .
+RUN pip install --upgrade pip
+RUN pip install --no-cache /wheels/*
+
+# copy entrypoint-prod.sh
+COPY ./entrypoint.prod.sh $APP_HOME
+
+# copy project
+COPY . $APP_HOME
+
+# chown all the files to the app user
+RUN chown -R kore:kore $APP_HOME
+
+# change to the app user
+USER kore
+
+# run entrypoint.prod.sh
+ENTRYPOINT ["/home/BackEnd/web/entrypoint.prod.sh"]

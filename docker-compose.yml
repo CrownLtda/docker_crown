@@ -1,0 +1,25 @@
+version: '3'
+
+services:
+  web:
+    build: ./BackEnd
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./BackEnd/:/usr/src/BackEnd
+    ports:
+      - 8000:8000
+    env_file:
+      - ./.env.dev
+    depends_on: 
+      - db
+  db: 
+    image: postgres:alpine
+    volumes: 
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=crown_admin
+      - POSTGRES_PASSWORD=Cr0wn.admin
+      - POSTGRES_DB=crown_db_dev
+
+volumes:
+  postgres_data:
